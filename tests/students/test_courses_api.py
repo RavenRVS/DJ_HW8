@@ -130,7 +130,6 @@ def test_count_of_students_per_course(use_new_settings,
                                       count_students,
                                       status_response,
                                       count_of_new_records):
-
     students = student_factory(_quantity=int(count_students))
     count = Course.objects.count()
     list_id_students = [str(student.id) for student in students]
