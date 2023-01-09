@@ -1,4 +1,5 @@
 import pytest
+from django.conf import settings
 from rest_framework.test import APIClient
 from model_bakery import baker
 
@@ -26,16 +27,20 @@ def course_factory():
     return factory
 
 
+@pytest.fixture(autouse=True)
+def use_new_settings(settings):
+    settings.MAX_STUDENTS_PER_COURSE = 5
+
+
 @pytest.mark.django_db
 def test_receiving_one_course(client, student_factory, course_factory):
     courses = course_factory(_quantity=1, make_m2m=True)
 
-    response = client.get('/api/v1/courses/')
+    response = client.get(f'/api/v1/courses/{courses[0].id}/')
 
     assert response.status_code == 200
     data = response.json()
-    assert len(data) == 1
-    assert data[0]['name'] == courses[0].name
+    assert data['name'] == courses[0].name
 
 
 @pytest.mark.django_db
@@ -113,20 +118,19 @@ def test_delete_course(client, course_factory):
         assert course_id != course.id
 
 
-@pytest.mark.parametrize('max_students, count_students, status_response, count_of_new_records',
+@pytest.mark.parametrize('count_students, status_response, count_of_new_records',
                          [
-                             ('5', '4', '201', '1'),
-                             ('5', '6', '400', '0')
+                             ('4', '201', '1'),
+                             ('6', '400', '0')
                          ])
 @pytest.mark.django_db
-def test_count_of_students_per_course(settings,
+def test_count_of_students_per_course(use_new_settings,
                                       client,
                                       student_factory,
-                                      max_students,
                                       count_students,
                                       status_response,
                                       count_of_new_records):
-    settings.MAX_STUDENTS_PER_COURSE = int(max_students)
+
     students = student_factory(_quantity=int(count_students))
     count = Course.objects.count()
     list_id_students = [str(student.id) for student in students]
